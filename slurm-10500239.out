@@ -1,0 +1,14 @@
+/home/xil4009/project_scripts
+--------------- Generating Index for Ref Genome ----------------
+	STAR --runMode genomeGenerate " "
+	STAR version: 2.7.10b   compiled: 2022-11-01T09:53:26-04:00 :/home/dobin/data/STAR/STARcode/STAR.master/source
+Feb 18 00:40:07 ..... started STAR run
+Feb 18 00:40:07 ... starting to generate Genome files
+
+EXITING because of INPUT ERROR: could not open genomeFastaFile: -
+
+Feb 18 00:40:07 ...... FATAL ERROR, exiting
+/var/spool/slurmd/job10500239/slurm_script: line 39: --runThreadN: command not found
+/var/spool/slurmd/job10500239/slurm_script: line 41: --genomeFastaFiles: command not found
+/var/spool/slurmd/job10500239/slurm_script: line 42: --sjdbGTFfile: command not found
+--------------- Script Termination ----------------

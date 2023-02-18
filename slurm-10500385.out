@@ -1,0 +1,12 @@
+/home/xil4009/project_scripts
+--------------- Generating Index for Ref Genome ----------------
+	STAR --runMode genomeGenerate --runThreadN 1 --genomeDir /athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/genome//m39_STARindex --genomeFastaFiles /athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/genome//Mus_musculus.GRCm39.dna.primary_assembly.fa --sjdbGTFfile /athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/genome//Mus_musculus.GRCm39.109.gtf --sjdbOverhang 99
+	STAR version: 2.7.10b   compiled: 2022-11-01T09:53:26-04:00 :/home/dobin/data/STAR/STARcode/STAR.master/source
+Feb 18 09:53:20 ..... started STAR run
+Feb 18 09:53:20 ... starting to generate Genome files
+Feb 18 09:54:01 ..... processing annotations GTF
+Feb 18 09:54:22 ... starting to sort Suffix Array. This may take a long time...
+Feb 18 09:54:36 ... sorting Suffix Array chunks and saving them to disk...
+/var/spool/slurmd/job10500385/slurm_script: line 43: 12692 Killed                  STAR --runMode genomeGenerate --runThreadN 1 --genomeDir "$m39_STARindex" --genomeFastaFiles "$m39_fa" --sjdbGTFfile "$m39_gtf" --sjdbOverhang 99
+--------------- Script Termination ----------------
+slurmstepd: error: Exceeded step memory limit at some point.

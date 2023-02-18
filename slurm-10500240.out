@@ -1,0 +1,12 @@
+/home/xil4009/project_scripts
+--------------- Generating Index for Ref Genome ----------------
+	STAR --runMode genomeGenerate " --runThreadN" 1 --genomeDir /athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/genome//m39_STARindex " --genomeFastaFiles" /athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/genome//Mus_musculus.GRCm39.dna.primary_assembly.fa " --sjdbGTFfile" /athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/genome//Mus_musculus.GRCm39.109.gtf.gz --sjdbOverhang 99
+	STAR version: 2.7.10b   compiled: 2022-11-01T09:53:26-04:00 :/home/dobin/data/STAR/STARcode/STAR.master/source
+Feb 18 00:44:24 ..... started STAR run
+
+EXITING because of FATAL INPUT PARAMETER ERROR: when generating genome without annotations (--sjdbFileChrStartEnd or --sjdbGTFfile options)
+do not specify >0 --sjdbOverhang
+SOLUTION: re-run genome generation without --sjdbOverhang option
+
+Feb 18 00:44:24 ...... FATAL ERROR, exiting
+--------------- Script Termination ----------------

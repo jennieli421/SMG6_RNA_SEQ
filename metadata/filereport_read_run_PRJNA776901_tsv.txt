@@ -1,0 +1,12 @@
+run_accession	fastq_ftp
+SRR16684375	ftp.sra.ebi.ac.uk/vol1/fastq/SRR166/075/SRR16684375/SRR16684375.fastq.gz
+SRR16684376	ftp.sra.ebi.ac.uk/vol1/fastq/SRR166/076/SRR16684376/SRR16684376.fastq.gz
+SRR16684377	ftp.sra.ebi.ac.uk/vol1/fastq/SRR166/077/SRR16684377/SRR16684377.fastq.gz
+SRR16684378	ftp.sra.ebi.ac.uk/vol1/fastq/SRR166/078/SRR16684378/SRR16684378.fastq.gz
+SRR16684379	
+SRR16684380	ftp.sra.ebi.ac.uk/vol1/fastq/SRR166/080/SRR16684380/SRR16684380.fastq.gz
+SRR16684381	ftp.sra.ebi.ac.uk/vol1/fastq/SRR166/081/SRR16684381/SRR16684381.fastq.gz
+SRR16684382	ftp.sra.ebi.ac.uk/vol1/fastq/SRR166/082/SRR16684382/SRR16684382.fastq.gz
+SRR16684383	ftp.sra.ebi.ac.uk/vol1/fastq/SRR166/083/SRR16684383/SRR16684383.fastq.gz
+SRR16684384	ftp.sra.ebi.ac.uk/vol1/fastq/SRR166/084/SRR16684384/SRR16684384.fastq.gz
+SRR16684385	ftp.sra.ebi.ac.uk/vol1/fastq/SRR166/085/SRR16684385/SRR16684385.fastq.gz
