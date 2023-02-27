@@ -7,7 +7,7 @@
 #SBATCH --time=05:00:00 # HH/MM/SS
 #SBATCH --mem=50G # memory requested, units available: K,M,G,T
 
-# Usage: fastq2bam.sh <fastq_dir > <fastqc_dir > 
+# Usage: run_trim_galore.sh <fastq_dir > 
 
 # read input 
 fastq_dir=$1

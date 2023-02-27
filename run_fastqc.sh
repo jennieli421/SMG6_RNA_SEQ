@@ -32,7 +32,7 @@ for file in "$fastq_dir"/*q.gz; do
     ID=$(echo "$file" | egrep -o 'SRR[0-9]{3,}')
 
     # Run FastQC, if not already present
-    if [ ! -r ${fastqc_dir}/${ID}_fastqc ]; then
+    if [ ! -r ${fastqc_dir}/${ID}_fastqc.html ]; then
         echo "---------------FastQC ${ID}----------------"
         fastqc ${file} --extract --outdir $fastqc_dir
     fi
