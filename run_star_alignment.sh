@@ -7,7 +7,15 @@
 #SBATCH --time=08:00:00 # HH/MM/SS
 #SBATCH --mem=50G # memory requested, units available: K,M,G,T
 
-# Usage: fastq2bam.sh <fastq_dir >
+#SBATCH --mail-type=END  # BEGIN, END, FAIL, or ALL
+#SBATCH --mail-user=<xil4009@med.cornell.edu>
+
+# Usage: fastq2bam.sh <fastq_dir>
+
+if [ $# -eq 0 ]; then
+  echo "No input provided. Usage: fastq2bam.sh <fastq_dir>"
+  exit 1
+fi
 
 # read input 
 fastq_dir=$1 # can align on trimmed or raw fastq
