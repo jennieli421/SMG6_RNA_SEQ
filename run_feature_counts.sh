@@ -45,6 +45,7 @@ echo $feature_counts_file
 featureCounts \
 -a ${annotation} \
 -o ${feature_counts_file} \
+-s 2 \
 "${bam_files[@]}"
 
 
