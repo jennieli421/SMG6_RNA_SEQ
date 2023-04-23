@@ -610,6 +610,10 @@ res.ctl.ct4oht.sorted <- res.ctl.ct4oht %>% `[`(order(.$padj),)
 
 # save these three objects 
 save(res.ctl.smg6.sorted, res.ctl4oht.smg6.sorted, res.ctl.ct4oht.sorted, file="DEG.results.sorted.Rdata")
+
+write.table(res.ctl.smg6.sorted, "DEG_results_Control_vs_SMG6iKO.csv", sep=",", quote=FALSE, row.names=TRUE)
+write.table(res.ctl4oht.smg6.sorted, "DEG_results_Control4OHT_vs_SMG6iKO.csv", sep=",", quote=FALSE, row.names=TRUE)
+write.table(res.ctl.ct4oht.sorted, "DEG_results_Control_vs_Control4OHT.csv", sep=",", quote=FALSE, row.names=TRUE)
 ```
 
 

@@ -44,16 +44,16 @@ The correct reading and translation of the genetic code into functional proteins
 
 Deficiency in NMD can cause the accumulation of deleterious mRNA products, leading to the production of mutated malfunctional or functional proteins that can result in tissue dysfunction or pathogenesis (Han et al. 2018). Knocking out NMD genes such as Upf1, Upf2, or Smg1 leads to embryonic lethality, indicating the vital role NMD plays in early development (Medghalchi et al. 2001; Weischenfeldt et al. 2008; McIlwain et al. 2010). Previous research has shown that the complete deletion of Smg6 in mouse germline results in early embryonic lethality by blocking the differentiation of embryonic stem cells into germ layers (Li et al. 2015). Additionally, SMG6 is required for the production of induced pluripotent stem cells from somatic cells, suggesting that SMG6-mediated NMD is a critical regulator of cell fate change and controls differentiation and development (Li et al. 2015).
 
-NMD factors are implicated in several neurological disorders in humans (Jaffrey & Wilkinson 2018). Despite these findings, the precise molecular mechanism underlying these processes remains largely unknown.To elucidate the function of SMG6 in neurogenesis during brain development, Guerra et al. (2021) inactivated Smg6 in various neural progenitor cells. They found that SMG6 is more critical for the cell fate determination of interneuron progenitors in the ganglionic eminence (GE) compared to cortical neuroprogenitor cells (NPCs). To investigate the genetic effect of SMG6 knockout, I analyzied their RNAseq data of mouse neuroprogenitor cells (NPCs) under three conditions (control, control+4OHT, Smg6-iKO) and performed differential gene expression analysis and pathway enrichment. 
+NMD factors are implicated in several neurological disorders in humans (Jaffrey & Wilkinson 2018). Despite these findings, the precise molecular mechanism underlying these processes remains largely unknown.To elucidate the function of SMG6 in neurogenesis during brain development, Guerra et al. (2021) inactivated Smg6 in various neural progenitor cells. They found that SMG6 is more critical for the cell fate determination of interneuron progenitors in the ganglionic eminence (GE) compared to cortical neuroprogenitor cells (NPCs). To investigate the genetic effect of SMG6 knockout, I analyzed their RNAseq data of mouse neuroprogenitor cells (NPCs) under three conditions (control, control+4OHT, Smg6-iKO) and performed differential gene expression analysis and pathway enrichment. 
 
-SMG6 is an endonuclease that mediates mRNA decay by NMD, thereby regulating gene expression and controling mRNA quality. Therefore, I hypothesized that SMG6 KO cells will show upregulation of other genes involved in NMD such as UPF1 as compensation. 
+SMG6 is an endonuclease that mediates mRNA decay by NMD, thereby regulating gene expression and controlling mRNA quality. Therefore, I hypothesized that SMG6 KO cells will show upregulation of other genes involved in NMD such as UPF1 as compensation and we will see enrichment for NMD pathways of differentially expressed genes. 
 
 
 ------------------------------
 
 
 # Results
-"Results" Another brief paragraph summarizing your key insights and possible future experiments/analyses that might enhance your own analysis. Make sure to include a discussion of the limits that your data set has!
+Another brief paragraph summarizing your key insights and possible future experiments/analyses that might enhance your own analysis. Make sure to include a discussion of the limits that your data set has!
 
 ```{r}
 load("DESeq.ds.Rdata")
@@ -69,6 +69,9 @@ DEG.res.sorted = res.ctl4oht.smg6.sorted
 
 
 ## PCA plot of the samples
+
+The samples do not cluster by groups. 
+
 ```{r}
 plotPCA(DESeq.rlog, intgroup=c("condition"))
 ```
@@ -88,6 +91,9 @@ mm <- org.Mm.eg.db
 
 
 ## Compare SMG6 gene count across groups 
+
+The comparison of SMG6 gene counts across groups implies unsuccessful knockout of SMG6 gene since the SMG6 expression level of the KO group is not much lower than the control groups. This gene count is consistent with the authors' gene counts, suggesting that the knockout is truly not evident. 
+
 ```{r}
 # get the ensemble ID for SMG6
 AnnotationDbi::select(mm, keys="Smg6",keytype="SYMBOL", columns="ENSEMBL")
@@ -95,7 +101,8 @@ AnnotationDbi::select(mm, keys="Smg6",keytype="SYMBOL", columns="ENSEMBL")
 plotCounts(DESeq.ds, gene="ENSMUSG00000038290", normalized=TRUE, xlab="", main="Smg6")
 ```
 
-Authors' feature counts for SMG6: 
+Authors' feature counts for SMG6 for each mice is shown below. Similar to the gene counts I aquired, there is not a big difference in SMG6 expression level between KO and control groups.  
+
 ```{bash eval=F}
 grep "ENSMUSG00000038290" *.txt | cut -f 7
 2003
@@ -125,7 +132,7 @@ head(DEG.res.sorted.df)
 
 ## Volcano plot
 
-```{r fig.width=4.5, fig.height=5.5, dpi=300}
+```{r fig.width=5, fig.height=5, dpi=200}
 vp1 <- EnhancedVolcano(DEG.res.sorted.df,
                       lab=DEG.res.sorted.df$SYMBOL,
                       x='log2FoldChange', y='padj',
@@ -134,15 +141,18 @@ vp1 <- EnhancedVolcano(DEG.res.sorted.df,
 print(vp1)
 ```
 
-
-
 ## Filter for significant genes 
 ```{r}
 DEG.res.sorted.df.sig <- subset(DEG.res.sorted.df, (abs(DEG.res.sorted.df$log2FoldChange) > 0.2 & DEG.res.sorted.df$padj < 0.05)) %>% `[`(order(.$padj),)
-DEG.res.sorted.df.sig
+# rearrange the columns
+DEG.res.sorted.df.sig <- DEG.res.sorted.df.sig[, c(1, 8, 7, 6, 3, 2, 4, 5)]
+head(DEG.res.sorted.df.sig, 50)
 ```
 
-The authors set the cutoff for "log2FoldChange" as 0.2, which means many genes have small effect sizes. If set the cutoff at 1, only 19 genes are considered as significantly unregulated. 
+The top hits are consistent with the ones shown in the Figure.6a of the publication. 
+
+Note that the authors set the cutoff for "log2FoldChange" as 0.2, which means many genes have small effect sizes. If set the cutoff at 1, only 19 genes are considered as significantly unregulated. 
+
 
 ## Pathway enrichment
 
@@ -171,6 +181,9 @@ gse.nmdset <- GSEA(gene_list, TERM2GENE = gmt_df, pvalueCutoff = 1)
 
 gseaplot(gse.nmdset, geneSetID = 1, by = "runningScore", title="NMD pathway")
 ```
+
+The result shows that the DE genes are not enriched for the NMD pathway. Thus, my hypothesis that SMG6 knockout will affect the NMD pathway was not supported by the result. 
+
 
 ### KEGG pathway enrichment 
 ```{r}
@@ -205,11 +218,22 @@ upReg_plot
 downReg_plot <- plotEnrich(downReg_pathways[[1]], showTerms = 15, numChar = 40, y = "Count", orderBy = "Adjusted.P.value", title = "Downregulated pathways")
 downReg_plot
 ```
+The enriched pathways are similar to the ones shown in Figure 6b of the paper. 
+
+
+## Summary of results
+
+The result in the publication was able to be replicated. By using the same cutoff values (`abs(log2FoldChange) > 0.2` and `padj < 0.05`), the list of differential expressed genes and enriched pathways resulted from current analysis are similar to that of the published study. However, the low cutoff indicates that many of the genes identified have small effect sizes. The major reason for this is likely due to incomplete SMG6 knockout. The PCA and SMG6 read counts comparison are both indicative of the unsuccessful knockout. One explanation is that instead of homozygous knockout, only heterozygous knockout was carried out because complete knockout of SMG6 is lethal. However, the limitation in the experiment cannot justify the usage of very low cutoff value. Overall, whether the genetic results shown in the publication are reliable and solid is highly debatable.
+
+Despite the small effect sizes of DEG analysis, my hypothesis is not supported by the results because the DE genes are not enriched for non-sense mediated decay pathways, and genes related to NMD did not appear in the DE gene list. 
+
+Future study should aim to generate a KO genotype with decreased level of SMG6 before proceeding to further analysis. With RNA sequencing data from a successful knockout model, we can better validate the function of SMG6 in the central nervous system. 
+
 
 ------------------------
 
 # Methods
-"Methods" A detailed verbose description of all the steps you took to arrive at the conclusion including how and where the data was downloaded, pre-processed and analyzed. This should also include some brief reasoning of why you chose certain tools/solutions and what the results of the QC tell you about the data at hand.
+A detailed verbose description of all the steps you took to arrive at the conclusion including how and where the data was downloaded, pre-processed and analyzed. This should also include some brief reasoning of why you chose certain tools/solutions and what the results of the QC tell you about the data at hand.
 
 ## Computational analysis
 
@@ -237,27 +261,43 @@ DESeq2 was used for differential expression analysis and KEGG database is used f
 
 
 ## Experiment (Guerra et al. 2021)
-RNA Extraction: NPCs were isolated from E13.5 embryo brains (cortices CTX and ganglionic eminences GE) after crossing $Smg6^{flox}$ and $Rosa26-CreER^{T2}$ mice. Kept in neurosphere cultures for 2 days followed by 4-Hydroxytamoxifen (4-OHT) treatment to induce the Smg6 deletion. Total RNA was isolated 6 days after 4-OHT treatment from cells with genotypes 
+RNA Extraction: NPCs were isolated from E13.5 embryo brains (cortices CTX and ganglionic eminences GE) after crossing $Smg6^{flox}$ and $Rosa26-CreER^{T2}$ mice. Kept in neurosphere cultures for 2 days followed by 4-Hydroxytamoxifen (4-OHT) treatment to induce the Smg6 deletion. Total RNA was isolated 6 days after 4-OHT treatment from cells with genotypes. 
 
 1. $Smg6^{flox/flox};Rosa26-CreER^{T2}$ without 4-OHT (ctr)
 2. $Smg6^{flox/flox}$ treated with 4-OHT (ctr + 4-OHT)  
 3. $Smg6^{flox/flox};Rosa26-CreER^{T2}$ treated with 4-OHT (Smg6-iKO)
 
 
-
+----------------------------
 
 # Discussion 
-"Discussion" A brief description/list of issues/problems/limitations you encountered along the way and how you addressed them.
+A brief description/list of issues/problems/limitations you encountered along the way and how you addressed them.
+
+During the project, I encountered an issue with the knockout of SMG6 that was unsuccessful. I noticed that the samples did not cluster by groups effectively on the PCA plot and investigated further by plotting the count of the SMG6 gene in three groups. I found that there was no significant decrease in SMG6 expression in the SMG6-iKO group compared to the controls. This explained the low number of DE genes obtained when using the cutoff of abs(log2FoldChange > 1). To rule out potential errors in parameter use or group name misalignment, I carefully reviewed the scripts and methods used by the authors, but found no obvious mistakes. The consistency between my feature counts for SMG6 and the authors' feature counts for SMG6 suggested that the issue was with the samples themselves.
 
 
-
-
+-----------------------------
 
 # Table 
 A table that summarizes the key data sets that you have generated during the analyses and decided to keep. 
 
+```{r echo=FALSE}
+# load required packages
+library(kableExtra)
 
+# create a data frame
+df <- data.frame(
+  Dataset = c("feature_counts_strand2", "DESeq.ds.Rdata", "DEG.results.sorted.Rdata", "DEG_results_Control_vs_Control4OHT.csv, DEG_results_Control_vs_SMG6iKO.csv, DEG_results_Control4OHT_vs_SMG6iKO.csv"),
+  Contains = c("featureCounts.txt, featureCounts.txt.summary", "DESeq object of the dataset", "Three DEG objects", "Three csv files of DEG results for pairwise comparison")
+)
 
+# format the data frame as a table using kable
+df %>%
+  kbl() %>%
+  kable_styling()
+```
+
+-------------------------------
 
 # References
 
