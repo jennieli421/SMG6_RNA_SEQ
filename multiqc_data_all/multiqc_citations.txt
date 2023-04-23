@@ -1,6 +1,0 @@
-10.1093/bioinformatics/btw354                      # MultiQC
-10.1186/s12859-015-0670-5                          # qorts
-10.1093/bioinformatics/btt656                      # featurecounts
-10.1093/bioinformatics/bts635                      # star
-10.14806/ej.17.1.200                               # cutadapt
-
