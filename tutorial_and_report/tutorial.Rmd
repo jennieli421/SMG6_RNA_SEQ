@@ -1,0 +1,789 @@
+---
+title: <center> <h1> 2023SP ANGSD Project Tutorial </h1> </center>
+author: <center> <h4> Jennie Li </h4> </center>
+date: <center> <h4> 2023-02-16 </h4> </center>
+output:
+  html_document:
+    toc: yes
+    toc_float: no
+    df_print: paged
+    theme: cosmo
+toc-title: Project Outline
+---
+
+```{r Setup, echo=FALSE, include=FALSE}
+# set eval=false for all bash chunks 
+knitr::opts_hooks$set(eval = function(options) {
+  if (options$engine == "bash") {
+    options$eval <- FALSE
+  }
+  options
+})
+```
+
+
+# Project Overview 
+
+__Hypothesis__: 
+
+SMG6 plays role in mediating nonsense-mediated mRNA decay (NMD). Therefore, I hypothesize that SMG6 KO cells will show upregulation of other genes involved in NMD such as UPF1 as compensation. 
+
+__Dataset information__: 
+
+- Dataset: [Total RNA sequencing in neuroprogenitors after SMG6 deletion](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE186964)
+- Authors: Guerra GM, May D, Kroll T, Koch P et al.
+- RNA-seq data [PRJNA776901](https://www.ebi.ac.uk/ena/browser/view/PRJNA776901)
+- Publication Nov 29, 2021 [download](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8699217/)
+- Source: mouse neuroprogenitor cells (NPCs)
+- Groups: 3 controls + 4 controls with 4-OHT + 4 Smg6-iKO with 4-OHT
+- Library preparation: TruSeq Stranded Total RNA (RiboZero Gold)
+- Platform: Illumina (HiSeq 2500, single-read high-output mode, read length 50bp)
+- Experimental metadata [download](https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA776901&o=acc_s%3Aa)
+
+RNA Extraction: NPCs were isolated from E13.5 embryo brains (cortices CTX and ganglionic eminences GE) after crossing $Smg6^{flox}$ and $Rosa26-CreER^{T2}$ mice. Kept in neurosphere cultures for 2 days followed by 4-Hydroxytamoxifen (4-OHT) treatment to induce the Smg6 deletion. Total RNA was isolated 6 days after 4-OHT treatment from cells with genotypes 
+
+1. $Smg6^{flox/flox};Rosa26-CreER^{T2}$ without 4-OHT (ctr)
+2. $Smg6^{flox/flox}$ treated with 4-OHT (ctr + 4-OHT)  
+3. $Smg6^{flox/flox};Rosa26-CreER^{T2}$ treated with 4-OHT (Smg6-iKO)
+
+__Limitations__: the samples are from in vitro cell cultures, therefore the generalizability of findings towards living organisms is limited.  Also, the samples are mouse cells, which means the implication of the result is not directly related to human. 
+
+
+----------------------------
+
+# Organization Layout of files
+![Figure. SMG6 project organization](images/SMG6_project_org.png)
+
+----------------------------
+
+# GitHub Repository
+
+The GitHub Repository of this project can be found [here](https://github.com/Jennie421/SMG6_RNA_SEQ). 
+
+You can find all scripts in the git repository. 
+
+----------------------------
+
+# Raw Data Processing 
+
+## Download three metadata files (manually)
+
+Download experiment metadata from [NCBI](https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA776901&o=acc_s%3Aa). 
+
+Download run accession and ftp links from [ENA](https://www.ebi.ac.uk/ena/browser/view/PRJNA776901).
+ PRJNA776901 -> download report -> TSV 
+
+
+## Download Fastq files (raw data)
+
+Navigate to working directory: 
+```{bash Login & Navigate, eval=F}
+ssh.curie.pbtech
+cd project_scripts
+```
+
+
+```{bash eval=F}
+sbatch download_fastq.sh 
+```
+
+
+SRR16684379 is shown as unavailable on ENA. Instead, I used `fasterq-dump SRR16684379` to download this sample. 
+
+
+## Trim galore 
+```{bash eval=F}
+sbatch run_trim_galore.sh "/athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/fastq_raw"
+```
+
+`trim_galore`: 
+
+  * `--gzip`: compress output files. 
+  * `--illumina`: specified because the RNA seq uses illumina platform. 
+
+## FastQC 
+
+```{bash eval=F}
+sbatch run_fastqc.sh "/athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/fastq_raw"
+sbatch run_fastqc.sh "/athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/fastq_trimmed"
+```
+
+`fastqc --extract` will uncompress the zipped output files. 
+
+copy the html files to local: 
+```{bash eval=F}
+cd /Users/jennie2000/Desktop/5004ANGSD/angsd_project/fastqc
+scp xil4009@aphrodite.med.cornell.edu:/athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/fastq_raw/fastqc/*.html .
+```
+
+
+## MultiQC
+```{bash eval=F}
+mamba activate multiqc
+multiqc /athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/fastq_raw/fastqc/*_fastqc/ 
+
+cd /Users/jennie2000/Desktop/5004ANGSD/angsd_project/
+scp xil4009@aphrodite.med.cornell.edu:/home/xil4009/project_scripts/multiqc_report.html .
+```
+
+MultiQC results for trimmed fastq: 
+
+![fastqc_per_base_sequence_quality_plot](images/fastqc_per_base_sequence_quality_plot.png){width=80%} \
+
+![fastqc_per_sequence_gc_content_plot](images/fastqc_per_sequence_gc_content_plot.png){width=80%} \
+
+![fastqc_sequence_duplication_levels_plot](images/fastqc_sequence_duplication_levels_plot.png){width=80%} \
+
+
+
+
+## Download reference & star index 
+
+```{bash eval=F}
+sbatch download_m39.sh 
+# will download m39 assembly and annotation, save in /athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/genome
+```
+
+```{bash eval=F}
+sbatch index_STAR_m39.sh
+# STAR INDEX saved in /athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/genome/m39_STARindex
+```
+
+Genome assembly & annotation are download from [Ensembl](http://useast.ensembl.org/Mus_musculus/Info/Index). 
+
+Genome assembly: [Mus_musculus.GRCm39.dna.primary_assembly.fa.gz](https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.primary_assembly.fa.gz)
+
+Annotation: [Mus_musculus.GRCm39.109.gtf.gz](https://ftp.ensembl.org/pub/release-109/gtf/mus_musculus/Mus_musculus.GRCm39.109.gtf.gz)
+
+
+
+## Alignment - STAR 
+
+Run alignment on trimmed fastq files: 
+```{bash eval=F}
+sbatch run_star_alignment.sh "/athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/fastq_trimmed"
+# alignment results saved in /athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/alignment_star
+```
+
+`STAR --outSAMtype BAM SortedByCoordinate`: outputs sorted bam files.
+
+
+## Alignment QC 
+```{bash eval=F}
+sbatch run_alignqc.sh 
+```
+
+`qorts QC`:
+
+* `--generatePlots`: outputs plots. 
+* `--singleEnded`: specified because the RNA seq protocol is single ended. 
+* `--stranded`: specified because the RNA seq protocol is stranded. 
+
+
+Download qorts QC plots to local: 
+```{bash eval=F}
+cd /Users/jennie2000/Desktop/5004ANGSD/angsd_project
+
+# this will search the remote path for ".pdf" files
+# and then copying them, preserving the directory structure 
+rsync -arv --prune-empty-dirs \
+  --include="*/" --include="*.pdf" --exclude="*" \
+  xil4009@aphrodite.med.cornell.edu:/athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/alignment_qc .
+```
+
+The first `--include` matches the folders, the second the `pdf` file, then the `--exclude`  prevents downloading everything else.
+
+Read distribution: 
+
+![While the majority of reads are mapped to unique genes, a number of reads are mapped to intronic or UTR regions, which suggests usage of ribodepletion protocol.](images/qorts_alignments.png){width=80%}
+
+
+
+Average gene body coverage: 
+
+![Gene body coverage is biased towards 3' end.](images/gene_body_coverage.jpg){width=80%}
+
+Strandedness: 
+
+![Most reads are mapped to the first strand.](images/qorts_strand_test.png){width=80%}
+
+
+## Inspect bam in IGV 
+
+1. Open IGV (download) and use the top-left drop-down Genome menu to load the genome (mm39).
+2. Use the search bar to navigate to the gene ACTB. 
+3. Download bam and bai
+
+```{bash eval=F}
+cd /Users/jennie2000/Desktop/5004ANGSD/angsd_project
+scp -r xil4009@aphrodite.med.cornell.edu:/athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/alignment_star/SRR16684375.Aligned.sortedByCoord.out.bam .
+scp -r xil4009@aphrodite.med.cornell.edu:/athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/alignment_star/SRR16684375.Aligned.sortedByCoord.out.bam.bai .
+```
+
+![Gene Actb of control SRR16684375](images/gene_actb_ensemble.png)
+
+Observations:
+
+The library appears to be stranded, which is consistent with what is stated in the paper.
+There are a few alignments (blue) to the reverse strand.
+Some reads are mapped to non-exon regions, indicating ribo-depeletion protocol. 
+
+![IGV gene coverage](images/IGV_coverage.png)
+
+
+## Alignment Rates
+
+```{bash eval=F}
+mamba activate multiqc
+multiqc /athena/angsd/scratch/xil4009/SMG6_RNA_SEQ 
+```
+
+![Alignment rates and  of 11 samples](images/alignment_rate.png){width=80%}
+
+
+## Feature Counts 
+
+`featureCounts` [documentation](https://manpages.org/featurecounts)
+
+flag `-s`: 0 (unstranded), 1 (stranded) and 2 (reversely stranded). 0 by default.
+
+parameter `-s 2` is used. 
+
+```{bash eval=F}
+sbatch run_feature_counts.sh
+```
+
+
+Copy featureCounts.txt.summary folder to local: 
+```{bash eval=F}
+cd /Users/jennie2000/Desktop/5004ANGSD/angsd_project
+scp -r xil4009@aphrodite.med.cornell.edu:/athena/angsd/scratch/xil4009/SMG6_RNA_SEQ/feature_counts .
+```
+
+
+---------------
+
+# Import libraries
+```{r, message=F, warning=F}
+library(glue)
+library(DESeq2)
+library(ggplot2); theme_set(theme_bw(base_size = 16)) # for making plots 
+library(magrittr) # for "pipe"-like coding in R
+library(pheatmap)
+library(AnnotationDbi)
+library(RColorBrewer)
+library(org.Mm.eg.db)
+mm <- org.Mm.eg.db
+library(EnhancedVolcano)
+```
+
+# Normalizing Read Counts
+
+## Prepare metadata 
+
+If needed, install `pandas`: 
+```{r eval=F, warning=F, message=F}
+library(reticulate)
+py_install("pandas")
+```
+
+
+```{python}
+import os
+import sys
+import pandas as pd 
+
+def add_sample_type(row):
+	if row['Genotype'] == "Smg6 Flox/Flox; RosaCreER tg/+" and row['TREATMENT'] == "no treatment":
+		return 'Control'
+	elif row['Genotype'] == "Smg6 Flox/Flox; RosaCreER +/+" and row['TREATMENT'] == "4-OHT":
+		return 'Control_4OHT'
+	elif row['Genotype'] == "Smg6 Flox/Flox; RosaCreER tg/+" and row['TREATMENT'] == "4-OHT":
+		return 'Smg6_iKO'
+
+def sample_type(metadata, output):
+	md = pd.read_csv(metadata)
+	md['Samplename'] = md.apply(lambda row: add_sample_type(row), axis=1)
+	# only keep columns 'Run' and 'Samplename'
+	md = md[['Run', 'Samplename']]
+	md.to_csv(output, sep=' ', index=False, header=False) 
+
+sample_type("metadata/SraRunTable.txt", "metadata/runid_samplename.txt")
+```
+
+
+## Import Feature Counts 
+
+```{r}
+fc <- read.table("feature_counts_strand2/featureCounts.txt", header=TRUE)
+metadata <- read.table("metadata/runid_samplename.txt")
+# set the first column as row names
+row.names(metadata) <- metadata[, 1]
+metadata[, 1] <- NULL  # remove the first column
+```
+
+```{r}
+# Sample name formatting
+names(fc) <- gsub(".*(SRR)([0-9]+).*", "\\1\\2", names(fc))
+
+col_names <- names(fc)
+
+## add conditions to sample IDs 
+for ( n in 1:length(col_names) ) {
+  col <- col_names[n]
+  # if the col is the ID 
+  if (grepl("SRR",col)) {
+    # get the condition of the ID
+    condition <- metadata[col, 1]
+    col_names[n] <- glue("{col}_{condition}")
+  }
+}
+
+names(fc) <- col_names
+```
+
+```{r eval=F}
+fc_summary <- read.table("feature_counts/featureCounts.txt.summary", header=TRUE)
+names(fc_summary) <- gsub(".*(SRR)([0-9]+).*", "\\1\\2", names(fc_summary))
+fc_summary
+```
+
+## DESeq2 object setup
+
+`colData`: data.frame with all the variables you know about your samples, e.g., experimental condition, the type, and date of sequencing and so on. Its row.names should correspond to the unique sample names.
+
+`countData`: should contain a matrix of the actual values associated with the genes and samples. Conveniently, this is almost exactly the format of the featureCounts output.
+
+
+```{r}
+## gene IDs should be stored as row.names
+row.names(fc) <- make.names(fc$Geneid)
+## exclude the columns without read counts (columns 1 to 6 contain additional ## info such as genomic coordinates)
+readcounts <- fc[ , -c(1:6)]
+head(readcounts)
+```
+
+
+```{r}
+sample_info <- data.frame(condition = gsub("SRR[0-9]+_", "", names(readcounts)),
+                         row.names = names(readcounts) )
+sample_info
+```
+
+### Generate the DESeqDataSet
+
+```{r warnging=F}
+DESeq.ds <- DESeqDataSetFromMatrix(countData = as.matrix(readcounts),
+                                   colData = sample_info,
+                                   design = ~ condition)
+```
+
+```{r}
+# How many reads were sequenced for each sample ( = library sizes)
+colSums(counts(DESeq.ds)) %>% barplot(las = 2, cex.names = 0.7)
+```
+Remove genes with no reads: 
+```{r}
+dim(DESeq.ds)
+keep_genes <- rowSums(counts(DESeq.ds)) > 0
+DESeq.ds <- DESeq.ds[ keep_genes, ]
+dim(DESeq.ds)
+```
+
+## Normalizing for sequencing depth and RNA composition differences
+
+### Calculating and applying the size factor
+```{r}
+DESeq.ds <- estimateSizeFactors(DESeq.ds) # calculate SFs, add them to object 
+plot( sizeFactors(DESeq.ds), colSums(counts(DESeq.ds)), # assess them
+      ylab = "library sizes", xlab = "size factors", cex = .6 )
+```
+
+Transform 
+```{r}
+par(mfrow=c(1,2)) # to plot the two box plots next to each other
+## bp of non-normalized
+boxplot(log2(counts(DESeq.ds) +1), notch=TRUE,
+        main = "Non-normalized read counts",
+        ylab ="log2(read counts)", cex = .6, las=2)
+## bp of size-factor normalized values
+boxplot(log2(counts(DESeq.ds, normalized=TRUE) +1), notch=TRUE,
+        main = "Size-factor-normalized read counts",
+        ylab ="log2(read counts)", cex = .6, las=2)
+```
+
+
+## Understanding more properties of read count data
+
+Make a scatterplot of log normalized counts against each other to see how well the actual values correlate which each other per sample and gene.
+```{r}
+## non-normalized read counts plus pseudocount
+assay(DESeq.ds, "log.counts") <- log2(counts(DESeq.ds, normalized = FALSE) + 1)
+## normalized read counts
+assay(DESeq.ds, "log.norm.counts") <- log2(counts(DESeq.ds, normalized=TRUE) + 1)
+```
+
+```{r}
+par(mfrow=c(1,2))
+DESeq.ds[, c("SRR16684376_Control","SRR16684375_Control")] %>%
+  assay(.,  "log.norm.counts") %>%
+  plot(., cex=.1, main = "76_Control vs. 75_Control")
+DESeq.ds[, c("SRR16684379_Control_4OHT","SRR16684378_Control_4OHT")] %>%
+  assay(.,  "log.norm.counts") %>%
+  plot(., cex=.1, main = "79_Control_4OHT vs 78_Control_4OHT")
+```
+
+The fanning out of the points in the lower left corner indicates that read counts correlate less well between replicates when they are low.
+the lower the mean read counts per gene, the higher the standard deviation.
+
+Mean-SD Plot: 
+```{r}
+## generate the base meanSdPlot using sequencing depth normalized log2(read counts) ## set up plotting frame
+par(mfrow=c(1,1))
+## generate the plot
+msd_plot <- vsn::meanSdPlot(assay(DESeq.ds, "log.norm.counts"), 
+                            ranks=FALSE, # show the data on the original scale
+                            plot = FALSE)
+msd_plot$gg +
+  ggtitle("Sequencing depth normalized log2(read counts)") +
+  ylab("standard deviation")
+```
+
+`meanSdPlot` manual:
+The red line depicts the running median estimator. If there is no variance-mean dependence, then the line should be approximately horizontal.
+
+The plot here shows that there is some variance-mean dependence for genes with low read counts. This means that the data shows signs of __heteroskedasticity.__
+Many tools expect data to be __homoskedastic__, i.e., all variables should have similar variances.
+
+### Reducing the dependence of the variance on the mean
+
+`rlog` transformation: 
+```{r}
+DESeq.rlog <- rlog(DESeq.ds, blind = TRUE)
+## set blind = FALSE if the conditions are expected to introduce ## strong differences in a large proportion of the genes
+## (blind means blind to the experimental design)
+```
+
+```{r}
+par(mfrow=c(1,2))
+plot(assay(DESeq.ds, "log.norm.counts")[,1:2], cex=.1,
+     main = "size factor and log2-transformed")
+## the rlog-transformed counts are stored in the "assay" accessor
+plot(assay(DESeq.rlog)[,1:2],
+     cex=.1, main = "rlog transformed",
+     xlab = colnames(assay(DESeq.rlog[,1])),
+     ylab = colnames(assay(DESeq.rlog[,2])) )
+```
+
+Mean-SD Plot: 
+```{r}
+## rlog-transformed read counts
+msd_plot <- vsn::meanSdPlot(assay(DESeq.rlog), ranks=FALSE, plot = FALSE)
+msd_plot$gg + ggtitle("Following rlog transformation") +
+  coord_cartesian(ylim = c(0,3))
+```
+
+
+### Heatmap of the count matrix
+
+```{r}
+select <- order(rowMeans(counts(DESeq.ds,normalized=TRUE)),
+                decreasing=TRUE)[1:20]
+
+cdata <- colData(DESeq.ds)
+
+pheatmap(assay(DESeq.rlog)[select,], 
+         cluster_rows=FALSE, 
+         show_rownames=FALSE,
+         cluster_cols=FALSE, 
+         annotation_col=as.data.frame(cdata))
+```
+
+### Heatmap of the sample-to-sample distances
+
+```{r}
+sampleDists <- dist(t(assay(DESeq.rlog)))
+
+sampleDistMatrix <- as.matrix(sampleDists)
+rownames(sampleDistMatrix) <- paste(DESeq.rlog$condition)
+colnames(sampleDistMatrix) <- NULL
+colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows=sampleDists,
+         clustering_distance_cols=sampleDists,
+         col=colors)
+```
+
+### PCA plot of the samples
+```{r}
+plotPCA(DESeq.rlog, intgroup=c("condition"))
+```
+
+
+# Differential Gene Expression Analysis
+
+```{r}
+DESeq.ds
+DESeq.ds$condition
+```
+
+
+```{r}
+## the following uses the magrittr assignment pipe
+DESeq.ds$condition %<>% relevel(ref="Control")
+DESeq.ds$condition
+design(DESeq.ds)
+```
+
+
+```{r}
+DESeq.ds %<>% DESeq()
+# normalize for diffs in sequencing depth and abundance per sample
+# gene-wise dispersion estimates across all samples
+# fit a neg. binomial GLM and compute Wald stat for each gene
+```
+
+
+You can see that the `DESeq` object now has additional entries n the `rowData` slot:
+```{r}
+DESeq.ds
+rowData(DESeq.ds) %>% colnames
+```
+
+## save DESeq object
+```{r}
+save(DESeq.ds, file="DESeq.ds.Rdata")
+save(DESeq.rlog, file="DESeq.rlog.Rdata")
+```
+
+
+## Adjusting for multiple hypothesis testing with independent filtering
+
+```{r}
+rowData(DESeq.ds)$WaldPvalue_condition_Smg6_iKO_vs_Control %>%
+    hist(breaks=19, main="Raw p-values for Smg6-iKO vs Control")
+
+rowData(DESeq.ds)$WaldPvalue_condition_Control_4OHT_vs_Control %>%
+    hist(breaks=19, main="Raw p-values for Control-4OHT vs Control")
+```
+
+
+By default, will compare Smg6_iko vs control 
+```{r}
+DGE.results <- results(DESeq.ds, independentFiltering = TRUE, alpha = 0.05)
+# the first line will tell you which comparison was done to achieve the log2FC
+```
+
+### pairwise comparison between three conditions
+```{r}
+res.ctl.smg6 <- results(DESeq.ds, contrast=c("condition","Smg6_iKO", "Control"), independentFiltering = TRUE, alpha = 0.05)
+res.ctl.ct4oht <- results(DESeq.ds, contrast=c("condition","Control_4OHT", "Control"))
+res.ctl4oht.smg6 <- results(DESeq.ds, contrast=c("condition","Smg6_iKO", "Control_4OHT"))
+```
+
+
+```{r}
+# the first line will tell you which comparison was done to achieve the log2FC 
+head(res.ctl.smg6)
+summary(res.ctl.smg6)
+# the DESeqResult object can basically be handled like a data.frame
+table(res.ctl.smg6$padj < 0.05)
+```
+
+
+## Compare SMG6 gene count across groups 
+```{r}
+AnnotationDbi::select(mm, keys="Smg6",keytype="SYMBOL", columns="ENSEMBL")
+
+plotCounts(DESeq.ds, gene="ENSMUSG00000038290", normalized=TRUE, xlab="", main="Smg6")
+```
+
+## Assessing the DE results
+
+### Visual assessments using normalized read counts
+
+##### sort DEG.results by padj 
+```{r}
+res.ctl.smg6.sorted <- res.ctl.smg6 %>% `[`(order(.$padj),)
+res.ctl4oht.smg6.sorted <- res.ctl4oht.smg6 %>% `[`(order(.$padj),)
+res.ctl.ct4oht.sorted <- res.ctl.ct4oht %>% `[`(order(.$padj),)
+
+# save these three objects 
+save(res.ctl.smg6.sorted, res.ctl4oht.smg6.sorted, res.ctl.ct4oht.sorted, file="DEG.results.sorted.Rdata")
+```
+
+
+##### define the pair that will be used for subsequent analysis
+```{r}
+DEG.res.sorted = res.ctl.smg6.sorted
+```
+
+
+##### adj p-values histogram 
+```{r}
+DEG.res.sorted$padj %>%
+    hist(breaks=19, main="Adjusted p-values for Smg6 iKO vs Control")
+```
+
+
+
+##### heatmaps 
+
+```{r}
+# identify genes with the desired adjusted p-value cut-off
+DGEgenes <- rownames(subset(DEG.res.sorted, padj < 0.05)) # extract rlog-transformed values into a matrix
+rlog.dge <- DESeq.rlog[DGEgenes,] %>% assay
+
+# heatmap of DEG sorted by p.adjust
+pheatmap(rlog.dge, 
+         scale="row",
+         show_rownames=FALSE, 
+         main="DGE Control-4OHT vs SMG-iKO (row-based z-score)")
+```
+
+
+##### MA plots
+
+```{r}
+plotMA(DEG.res.sorted, alpha=0.05,
+       main="Test: p.adj.value < 0.05", ylim = c(-4,4))
+```
+
+##### Volcano plots (with gene names)
+
+Annotate with gene names: 
+```{r}
+annot.DGE <- AnnotationDbi::select(mm, keys=rownames(DEG.res.sorted),
+                    keytype="ENSEMBL", columns="SYMBOL")
+```
+
+```{r}
+DEG.res.sorted$ENSEMBL <- rownames(DEG.res.sorted)
+DEG.res.sorted.df <- as.data.frame(DEG.res.sorted)
+DEG.res.sorted.df <- merge(x = DEG.res.sorted.df, y = annot.DGE, by= "ENSEMBL", all.x=TRUE)
+head(DEG.res.sorted.df)
+```
+
+Volcano plot: 
+```{r fig.width=4.5, fig.height=5.5, dpi=300}
+vp1 <- EnhancedVolcano(DEG.res.sorted.df,
+                      lab=DEG.res.sorted.df$SYMBOL,
+                      x='log2FoldChange', y='padj',
+                      pCutoff=0.05,
+                      title="Control-4OHT VS. SMG6-iKO")
+print(vp1)
+```
+
+```{r}
+DEG.res.sorted.df.sig <- subset(DEG.res.sorted.df, (abs(DEG.res.sorted.df$log2FoldChange) > 0.2 & DEG.res.sorted.df$padj < 0.05)) %>% `[`(order(.$padj),)
+
+head(DEG.res.sorted.df.sig)
+```
+
+
+# Pathway enrichment
+
+## Setup
+```{r warning=FALSE, message=FALSE}
+library(enrichR)
+dbs <- listEnrichrDbs()
+library(clusterProfiler)
+library(cowplot)
+```
+
+
+## NMD pathway 
+gmt file is downlaoded from [GSEA mouse gene set NMD](https://www.gsea-msigdb.org/gsea/msigdb/mouse/geneset/GOBP_NUCLEAR_TRANSCRIBED_MRNA_CATABOLIC_PROCESS_NONSENSE_MEDIATED_DECAY.html?keywords=decay)
+```{r}
+gmt_df <- read.gmt("GOBP_NUCLEAR_TRANSCRIBED_MRNA_CATABOLIC_PROCESS_NONSENSE_MEDIATED_DECAY.v2023.1.Mm.gmt")
+annot.gmt <- AnnotationDbi::select(mm, keys=gmt_df$gene, keytype="SYMBOL", columns="ENSEMBL", multiVals="first")
+head(annot.gmt)
+
+annot.gmt <- annot.gmt[!duplicated(annot.gmt$SYMBOL), ]
+gmt_df$gene <- annot.gmt$ENSEMBL
+
+# rank genes by log2FoldChange 
+gene_list = DEG.res.sorted.df$log2FoldChange
+names(gene_list) <- DEG.res.sorted.df$ENSEMBL
+gene_list<- sort(gene_list, decreasing = TRUE)
+
+
+gse.nmdset <- GSEA(gene_list, TERM2GENE = gmt_df, pvalueCutoff = 1)
+gse.nmdset # check the result 
+
+gseaplot(gse.nmdset, geneSetID = 1, by = "runningScore", title="NMD pathway")
+```
+
+
+## KEGG pathway enrichment 
+```{r}
+sig_DEGs <- subset(DEG.res.sorted.df.sig, padj < 0.05, abs(log2FoldChange)>0.2)
+sig_upReg_DEGs <- subset(sig_DEGs, log2FoldChange > 0)
+sig_downReg_DEGs <- subset(sig_DEGs, log2FoldChange < 0)
+```
+
+```{r}
+sig_DEGs <- enrichr(as.vector(na.omit(sig_upReg_DEGs$SYMBOL)), "KEGG_2019_Mouse")
+upReg_pathways <- enrichr(as.vector(na.omit(sig_upReg_DEGs$SYMBOL)), "KEGG_2019_Mouse")
+downReg_pathways <- enrichr(as.vector(na.omit(sig_downReg_DEGs$SYMBOL)), "KEGG_2019_Mouse")
+```
+
+## Plot pathways
+```{r}
+sigDEG_plot <- plotEnrich(sig_DEGs[[1]], showTerms = 15, numChar = 40, y = "Count", orderBy = "Adjusted.P.value", title = "enriched pathways, padj < 0.05, logFoldChange>0.2")
+sigDEG_plot
+
+upReg_plot <- plotEnrich(upReg_pathways[[1]], showTerms = 15, numChar = 40, y = "Count", orderBy = "Adjusted.P.value", title = "Upregulated pathways")
+
+downReg_plot <- plotEnrich(downReg_pathways[[1]], showTerms = 15, numChar = 40, y = "Count", orderBy = "Adjusted.P.value")
+combined_plot <- plot_grid(upReg_plot, downReg_plot, labels = c('A', 'B'))
+upReg_plot
+downReg_plot
+```
+
+```{r}
+ggsave(
+  "Pathway_enrichment.png",
+  combined_plot ,
+  width = 12,
+  height = 5,
+  units = "in",
+  dpi = 300
+)
+```
+
+
+--------------------
+
+Authors' feature counts for SMG6:
+```{bash eval=F}
+cd GSE186964_RAW/
+grep "ENSMUSG00000038290" *.txt | cut -f 7
+2003
+2483
+1942
+1787
+1879
+2238
+1885
+2144
+1698
+2000
+2133
+```
+
+
+Download bam files: 
+```{bash}
+cd /Users/jennie2000/Desktop/5004ANGSD/angsd_project/bam_files
+bam="/home/xil4009/scratch_angsd/SMG6_RNA_SEQ/alignment_star/SRR16684385.Aligned.sortedByCoord.out.bam"
+bai="/home/xil4009/scratch_angsd/SMG6_RNA_SEQ/alignment_star/SRR16684385.Aligned.sortedByCoord.out.bam.bai"
+
+scp -r xil4009@aphrodite.med.cornell.edu:${bam or bai} .
+scp -r xil4009@aphrodite.med.cornell.edu:${bai} .
+
+scp -r xil4009@aphrodite.med.cornell.edu:/home/xil4009/scratch_angsd/SMG6_RNA_SEQ/alignment_star/*.{bam,bai} .
+
+```
+
+

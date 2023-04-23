@@ -1,0 +1,279 @@
+---
+title: <center> <h1> 2023SP ANGSD Project Report </h1> </center>
+author: <center> <h4> Jennie Li </h4> </center>
+date: <center> <h4> 2023-02-16 </h4> </center>
+output:
+  html_document:
+    toc: yes
+    toc_float: no
+    df_print: paged
+    theme: cosmo
+toc-title: Project Outline
+---
+
+```{r Setup, echo=FALSE, include=FALSE}
+# set eval=false for all bash chunks 
+knitr::opts_hooks$set(eval = function(options) {
+  if (options$engine == "bash") {
+    options$eval <- FALSE
+  }
+  options
+})
+```
+
+
+## Set up
+
+```{r warning=FALSE, message=FALSE}
+library(org.Mm.eg.db)
+library(AnnotationDbi)
+library(EnhancedVolcano)
+library(enrichR)
+library(DESeq2)
+library(ggplot2); theme_set(theme_bw(base_size = 16)) # for making plots 
+library(magrittr) # for "pipe"-like coding in R
+library(clusterProfiler)
+library(cowplot)
+```
+
+
+# Introduction 
+"Introduction" A brief paragraph summarizing the scientific background and/or why that particular question is interesting (you should cite at least 3-5 papers). Of course, you should clearly state the question you’re going to investigate as well as the specific hypothesis you set out to test.
+
+The correct reading and translation of the genetic code into functional proteins is essential for cell fate. Nonsense-mediated mRNA decay (NMD) is a cellular surveillance mechanism that controls the quality of mRNA by degrading transcripts (Lykke-Andersen & Jensen 2015). By phosphorylating UPF1 and UPF2, SMG1 promotes the recruitment of SMG6 endonuclease or SMG5/SMG7-mediated exonuclease for RNA degradation (Lykke-Andersen & Jensen 2015). 
+
+Deficiency in NMD can cause the accumulation of deleterious mRNA products, leading to the production of mutated malfunctional or functional proteins that can result in tissue dysfunction or pathogenesis (Han et al. 2018). Knocking out NMD genes such as Upf1, Upf2, or Smg1 leads to embryonic lethality, indicating the vital role NMD plays in early development (Medghalchi et al. 2001; Weischenfeldt et al. 2008; McIlwain et al. 2010). Previous research has shown that the complete deletion of Smg6 in mouse germline results in early embryonic lethality by blocking the differentiation of embryonic stem cells into germ layers (Li et al. 2015). Additionally, SMG6 is required for the production of induced pluripotent stem cells from somatic cells, suggesting that SMG6-mediated NMD is a critical regulator of cell fate change and controls differentiation and development (Li et al. 2015).
+
+NMD factors are implicated in several neurological disorders in humans (Jaffrey & Wilkinson 2018). Despite these findings, the precise molecular mechanism underlying these processes remains largely unknown.To elucidate the function of SMG6 in neurogenesis during brain development, Guerra et al. (2021) inactivated Smg6 in various neural progenitor cells. They found that SMG6 is more critical for the cell fate determination of interneuron progenitors in the ganglionic eminence (GE) compared to cortical neuroprogenitor cells (NPCs). To investigate the genetic effect of SMG6 knockout, I analyzied their RNAseq data of mouse neuroprogenitor cells (NPCs) under three conditions (control, control+4OHT, Smg6-iKO) and performed differential gene expression analysis and pathway enrichment. 
+
+SMG6 is an endonuclease that mediates mRNA decay by NMD, thereby regulating gene expression and controling mRNA quality. Therefore, I hypothesized that SMG6 KO cells will show upregulation of other genes involved in NMD such as UPF1 as compensation. 
+
+
+------------------------------
+
+
+# Results
+"Results" Another brief paragraph summarizing your key insights and possible future experiments/analyses that might enhance your own analysis. Make sure to include a discussion of the limits that your data set has!
+
+```{r}
+load("DESeq.ds.Rdata")
+load("DESeq.rlog.Rdata")
+load("DEG.results.sorted.Rdata")
+```
+
+SMG6-iKO is set as reference level. 
+
+```{r}
+DEG.res.sorted = res.ctl4oht.smg6.sorted
+```
+
+
+## PCA plot of the samples
+```{r}
+plotPCA(DESeq.rlog, intgroup=c("condition"))
+```
+
+
+
+## IGV gene coverage 
+
+![IGV gene coverage](images/IGV_coverage.png)
+
+
+
+## Import Mm database
+```{r}
+mm <- org.Mm.eg.db
+```
+
+
+## Compare SMG6 gene count across groups 
+```{r}
+# get the ensemble ID for SMG6
+AnnotationDbi::select(mm, keys="Smg6",keytype="SYMBOL", columns="ENSEMBL")
+
+plotCounts(DESeq.ds, gene="ENSMUSG00000038290", normalized=TRUE, xlab="", main="Smg6")
+```
+
+Authors' feature counts for SMG6: 
+```{bash eval=F}
+grep "ENSMUSG00000038290" *.txt | cut -f 7
+2003
+2483
+1942
+1787
+1879
+2238
+1885
+2144
+1698
+2000
+2133
+```
+
+
+## Annotate genes by names 
+```{r}
+annot.DGE <- AnnotationDbi::select(mm, keys=rownames(DEG.res.sorted),
+                    keytype="ENSEMBL", columns="SYMBOL")
+
+DEG.res.sorted$ENSEMBL <- rownames(DEG.res.sorted)
+DEG.res.sorted.df <- as.data.frame(DEG.res.sorted)
+DEG.res.sorted.df <- merge(x = DEG.res.sorted.df, y = annot.DGE, by= "ENSEMBL", all.x=TRUE)
+head(DEG.res.sorted.df)
+```
+
+## Volcano plot
+
+```{r fig.width=4.5, fig.height=5.5, dpi=300}
+vp1 <- EnhancedVolcano(DEG.res.sorted.df,
+                      lab=DEG.res.sorted.df$SYMBOL,
+                      x='log2FoldChange', y='padj',
+                      pCutoff=0.05,
+                      title="Control-4OHT VS. SMG6-iKO")
+print(vp1)
+```
+
+
+
+## Filter for significant genes 
+```{r}
+DEG.res.sorted.df.sig <- subset(DEG.res.sorted.df, (abs(DEG.res.sorted.df$log2FoldChange) > 0.2 & DEG.res.sorted.df$padj < 0.05)) %>% `[`(order(.$padj),)
+DEG.res.sorted.df.sig
+```
+
+The authors set the cutoff for "log2FoldChange" as 0.2, which means many genes have small effect sizes. If set the cutoff at 1, only 19 genes are considered as significantly unregulated. 
+
+## Pathway enrichment
+
+```{r}
+# Load pathway databases 
+dbs <- listEnrichrDbs() 
+```
+
+
+### NMD pathway 
+gmt file is downloaded from [GSEA mouse gene set NMD](https://www.gsea-msigdb.org/gsea/msigdb/mouse/geneset/GOBP_NUCLEAR_TRANSCRIBED_MRNA_CATABOLIC_PROCESS_NONSENSE_MEDIATED_DECAY.html?keywords=decay)
+
+```{r}
+gmt_df <- read.gmt("GOBP_NUCLEAR_TRANSCRIBED_MRNA_CATABOLIC_PROCESS_NONSENSE_MEDIATED_DECAY.v2023.1.Mm.gmt")
+annot.gmt <- AnnotationDbi::select(mm, keys=gmt_df$gene, keytype="SYMBOL", columns="ENSEMBL", multiVals="first")
+
+annot.gmt <- annot.gmt[!duplicated(annot.gmt$SYMBOL), ]
+gmt_df$gene <- annot.gmt$ENSEMBL
+
+# rank genes by log2FoldChange 
+gene_list = DEG.res.sorted.df$log2FoldChange
+names(gene_list) <- DEG.res.sorted.df$ENSEMBL
+gene_list<- sort(gene_list, decreasing = TRUE)
+
+gse.nmdset <- GSEA(gene_list, TERM2GENE = gmt_df, pvalueCutoff = 1)
+
+gseaplot(gse.nmdset, geneSetID = 1, by = "runningScore", title="NMD pathway")
+```
+
+### KEGG pathway enrichment 
+```{r}
+sig_DEGs <- subset(DEG.res.sorted.df.sig, padj < 0.05, abs(log2FoldChange)>0.2)
+sig_upReg_DEGs <- subset(sig_DEGs, log2FoldChange > 0)
+sig_downReg_DEGs <- subset(sig_DEGs, log2FoldChange < 0)
+```
+
+```{r}
+sig_DEGs <- enrichr(as.vector(na.omit(sig_upReg_DEGs$SYMBOL)), "KEGG_2019_Mouse")
+
+upReg_pathways <- enrichr(as.vector(na.omit(sig_upReg_DEGs$SYMBOL)), "KEGG_2019_Mouse")
+
+downReg_pathways <- enrichr(as.vector(na.omit(sig_downReg_DEGs$SYMBOL)), "KEGG_2019_Mouse")
+```
+
+### KEEG pathway enrichment plots
+```{r}
+sigDEG_plot <- plotEnrich(sig_DEGs[[1]], showTerms = 15, numChar = 40, y = "Count", orderBy = "Adjusted.P.value", title = "enriched pathways, padj < 0.05, logFoldChange>0.2")
+
+sigDEG_plot
+```
+
+
+```{r}
+upReg_plot <- plotEnrich(upReg_pathways[[1]], showTerms = 15, numChar = 40, y = "Count", orderBy = "Adjusted.P.value", title = "Upregulated pathways")
+upReg_plot
+```
+
+
+```{r}
+downReg_plot <- plotEnrich(downReg_pathways[[1]], showTerms = 15, numChar = 40, y = "Count", orderBy = "Adjusted.P.value", title = "Downregulated pathways")
+downReg_plot
+```
+
+------------------------
+
+# Methods
+"Methods" A detailed verbose description of all the steps you took to arrive at the conclusion including how and where the data was downloaded, pre-processed and analyzed. This should also include some brief reasoning of why you chose certain tools/solutions and what the results of the QC tell you about the data at hand.
+
+## Computational analysis
+
+### 1. Download metadata and raw fastq files 
+Experiment metadata was downloaded from [NCBI](https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA776901&o=acc_s%3Aa). The run accession and ftp links from were downloaded from [ENA PRJNA776901](https://www.ebi.ac.uk/ena/browser/view/PRJNA776901). 11 Fastq files are downloaded, which contained the sequencing result from 11 mouse neuroprogenitor cells (NPCs) samples (three controls, four controls with 4-OHT, and four Smg6-iKO with 4-OHT). All samples were sequenced by Illumina HiSeq 2500 with TruSeq stranded protocol library preparation. The read length is 50bp. 
+
+### 2. Trim adaptors
+`trim-galore` was used to trim adaptor sequences with flags `--gzip` to compress output files and `--illumina` since the data was from illumina platform. `fastqc` and `multiqc` were performed on raw fastq and trimmed fastq files. While the QC showed no obvious difference between raw and trimmed fastq files, the GC content of one of the files was improved after trimming. Thus, the trimmed fastq files were used in the downstream analysis. 
+
+### 3. Alignment 
+Genome assembly and annotation were download from [Ensembl](http://useast.ensembl.org/Mus_musculus/Info/Index). Genome assembly: [Mus_musculus.GRCm39.dna.primary_assembly.fa.gz](https://ftp.ensembl.org/pub/release-109/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.primary_assembly.fa.gz). Annotation: [Mus_musculus.GRCm39.109.gtf.gz](https://ftp.ensembl.org/pub/release-109/gtf/mus_musculus/Mus_musculus.GRCm39.109.gtf.gz)
+
+STAR index was generated and alignment was performed. `STAR --outSAMtype BAM SortedByCoordinate` was used to generate sorted `bam` files. Quality control of alignment results was perform using `qorts QC`. Flags `--generatePlots` specifies plot generation, and `--singleEnded` and `--stranded` were specified because the RNA-seq protocol was single-ended and stranded. 
+
+![While the majority of reads are mapped to unique genes, a number of reads are mapped to intronic or UTR regions, which suggests usage of ribodepletion protocol.](images/qorts_alignments.png){width=80%}
+
+
+![Most reads are mapped to the first strand.](images/qorts_strand_test.png){width=80%}
+
+### 4. Feature counts 
+`featureCounts` was run with parameter `-s 2` because the reads were mapped to the reverse strand. 
+
+### 5. Differential expression and pathway enrichment 
+DESeq2 was used for differential expression analysis and KEGG database is used for pathway enrichment. 
+
+
+## Experiment (Guerra et al. 2021)
+RNA Extraction: NPCs were isolated from E13.5 embryo brains (cortices CTX and ganglionic eminences GE) after crossing $Smg6^{flox}$ and $Rosa26-CreER^{T2}$ mice. Kept in neurosphere cultures for 2 days followed by 4-Hydroxytamoxifen (4-OHT) treatment to induce the Smg6 deletion. Total RNA was isolated 6 days after 4-OHT treatment from cells with genotypes 
+
+1. $Smg6^{flox/flox};Rosa26-CreER^{T2}$ without 4-OHT (ctr)
+2. $Smg6^{flox/flox}$ treated with 4-OHT (ctr + 4-OHT)  
+3. $Smg6^{flox/flox};Rosa26-CreER^{T2}$ treated with 4-OHT (Smg6-iKO)
+
+
+
+
+# Discussion 
+"Discussion" A brief description/list of issues/problems/limitations you encountered along the way and how you addressed them.
+
+
+
+
+
+# Table 
+A table that summarizes the key data sets that you have generated during the analyses and decided to keep. 
+
+
+
+
+# References
+
+Guerra, G. M., May, D., Kroll, T., Koch, P., Groth, M., Wang, Z. Q., Li, T. L., & Grigaravičius, P. (2021). Cell Type-Specific Role of RNA Nuclease SMG6 in Neurogenesis. Cells, 10(12), 3365. https://doi.org/10.3390/cells10123365
+
+
+Lykke-Andersen, S., & Jensen, T. H. (2015). Nonsense-mediated mRNA decay: an intricate machinery that shapes transcriptomes. Nature reviews. Molecular cell biology, 16(11), 665–677. https://doi.org/10.1038/nrm4063
+
+Han, X., Wei, Y., Wang, H., Wang, F., Ju, Z., & Li, T. (2018). Nonsense-mediated mRNA decay: A 'nonsense' pathway makes sense in stem cell biology. Nucleic Acids Research, 46(3), 1038-1051.
+
+Li, T., Shi, Y., Wang, P., Guachalla, L., Sun, B., Joerss, T., . . . Wang, Z. (2015). Smg6/Est1 licenses embryonic stem cell differentiation via nonsense-mediated mRNA decay. The EMBO Journal, 34(12), 1630-1647.
+
+Jaffrey, S., & Wilkinson, M. (2018). Nonsense-mediated RNA decay in the brain: Emerging modulator of neural development and disease. Nature Reviews. Neuroscience, 19(12), 715-728.
+
+Medghalchi, S., Frischmeyer, P., Mendell, J., Kelly, A., Lawler, A., & Dietz, H. (2001). Rent1, a trans-effector of nonsense-mediated mRNA decay, is essential for mammalian embryonic viability. Human Molecular Genetics, 10(2), 99-105.
+
+Weischenfeldt, J., Damgaard, I., Bryder, D., Theilgaard-Mönch, K., Thoren, L., Nielsen, F., . . . Porse, B. (2008). NMD is essential for hematopoietic stem and progenitor cells and for eliminating by-products of programmed DNA rearrangements. Genes & Development, 22(10), 1381-1396.
+
+McIlwain, D., Pan, Q., Reilly, P., Elia, A., McCracken, S., Wakeham, A., . . . Mak, T. (2010). Smg1 is required for embryogenesis and regulates diverse genes via alternative splicing coupled to nonsense-mediated mRNA decay. Proceedings of the National Academy of Sciences - PNAS, 107(27), 12186-12191.
