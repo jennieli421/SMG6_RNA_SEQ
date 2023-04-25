@@ -8,7 +8,7 @@ output:
     toc_float: no
     df_print: paged
     theme: cosmo
-toc-title: Project Outline
+toc-title: Report Overview
 ---
 
 ```{r Setup, echo=FALSE, include=FALSE}
@@ -48,6 +48,11 @@ NMD factors are implicated in several neurological disorders in humans (Jaffrey 
 
 SMG6 is an endonuclease that mediates mRNA decay by NMD, thereby regulating gene expression and controlling mRNA quality. Therefore, I hypothesized that SMG6 KO cells will show upregulation of other genes involved in NMD such as UPF1 as compensation and we will see enrichment for NMD pathways of differentially expressed genes. 
 
+----------------------------
+
+# GitHub Repository
+
+The GitHub Repository of this project can be found [here](https://github.com/Jennie421/SMG6_RNA_SEQ). You can find all scripts for processing raw sequencing data (under `scripts`) and a detailed tutorial (`tutorial.Rmd` under `report_and_tutorial`) for executing the commands and downstream analysis in R. 
 
 ------------------------------
 
@@ -55,10 +60,11 @@ SMG6 is an endonuclease that mediates mRNA decay by NMD, thereby regulating gene
 # Results
 Another brief paragraph summarizing your key insights and possible future experiments/analyses that might enhance your own analysis. Make sure to include a discussion of the limits that your data set has!
 
+Load datasets generated from analysis as demonstrated in `tutorial.Rmd`. 
 ```{r}
-load("DESeq.ds.Rdata")
-load("DESeq.rlog.Rdata")
-load("DEG.results.sorted.Rdata")
+load("key_datasets/DESeq.ds.Rdata")
+load("key_datasets/DESeq.rlog.Rdata")
+load("key_datasets/DEG.results.sorted.Rdata")
 ```
 
 SMG6-iKO is set as reference level. 
